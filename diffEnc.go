@@ -1,4 +1,4 @@
-package vidcomp
+package badapplecodec
 
 import "io"
 

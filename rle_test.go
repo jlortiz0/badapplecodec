@@ -1,16 +1,16 @@
-package vidcomp_test
+package badapplecodec_test
 
 import (
 	"bytes"
 	"encoding/binary"
 	"testing"
 
-	"github.com/jlortiz0/vidcomp"
+	"github.com/jlortiz0/badapplecodec"
 )
 
 func TestEncoder(t *testing.T) {
 	data := []byte{0, 1, 0, 0, 0, 0}
-	e := vidcomp.NewCrumbRLEEncoder()
+	e := badapplecodec.NewCrumbRLEEncoder()
 	e.BeginFrame(3, 2, data[0])
 	for _, x := range data[1:] {
 		e.WriteCrumb(x)
@@ -26,7 +26,7 @@ func TestEncoder(t *testing.T) {
 
 func TestDecoder(t *testing.T) {
 	data := []byte{0x43, 0x12}
-	d := vidcomp.NewCrumbRLEDecoder(bytes.NewReader(data))
+	d := badapplecodec.NewCrumbRLEDecoder(bytes.NewReader(data))
 	header, b := d.ReadHeader(2)
 	if !b {
 		t.Fatal("read error")

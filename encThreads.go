@@ -1,4 +1,4 @@
-package vidcomp
+package badapplecodec
 
 const (
 	HEADER_NORMAL uint32 = 0

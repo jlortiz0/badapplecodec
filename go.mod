@@ -1,3 +1,3 @@
-module github.com/jlortiz0/vidcomp
+module github.com/jlortiz0/badapplecodec
 
 go 1.19
