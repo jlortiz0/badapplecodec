@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 )
+import "io"
 
 var ErrNotCrumb error = errors.New("not a crumb")
 
@@ -15,26 +16,28 @@ type CrumbRLEEncoder struct {
 	curByte   byte
 }
 
-const (
-	encoder_flag_init byte = 1 << 7 // Set if at least one crumb has been written
-	encoder_flag_mask byte = encoder_flag_init - 1
-)
-
-func NewCrumbRLEEncoder(header uint32, headerLen int) *CrumbRLEEncoder {
+func NewCrumbRLEEncoder() *CrumbRLEEncoder {
 	out := &CrumbRLEEncoder{output: new(bytes.Buffer)}
-	for i := 0; i < headerLen; i++ {
-		out.writeBit(header&(1<<i) != 0)
-	}
 	return out
+}
+
+func (e *CrumbRLEEncoder) BeginFrame(header uint32, headerLen int, crumb byte) {
+	e.flushPacket()
+	for i := 0; i < headerLen; i++ {
+		e.writeBit(header&(1<<i) != 0)
+	}
+	if crumb == 0 {
+		e.writeBit(false)
+		e.packetLen++
+	} else {
+		e.writeBit(true)
+		e.WriteCrumb(crumb)
+	}
 }
 
 func (e *CrumbRLEEncoder) WriteCrumb(b byte) error {
 	if b&0xfc != 0 {
 		return ErrNotCrumb
-	}
-	if e.bytePos&encoder_flag_init == 0 {
-		e.bytePos = encoder_flag_init
-		e.writeBit(b != 0)
 	}
 	if b == 0 {
 		if e.packetLen == 0 {
@@ -52,20 +55,26 @@ func (e *CrumbRLEEncoder) WriteCrumb(b byte) error {
 
 func (e *CrumbRLEEncoder) writeBit(b bool) {
 	if b {
-		e.curByte |= 1 << (e.bytePos & encoder_flag_mask)
+		e.curByte |= 1 << e.bytePos
 	}
-	if e.bytePos&encoder_flag_mask == 7 {
+	if e.bytePos == 7 {
 		e.output.WriteByte(e.curByte)
 		e.curByte = 0
-		e.bytePos &= ^encoder_flag_mask
+		e.bytePos = 0
 	} else {
 		e.bytePos++
 	}
 }
 
-func (e *CrumbRLEEncoder) Flush() {
+func (e *CrumbRLEEncoder) Flush(w io.Writer) {
 	e.flushPacket()
-	for e.bytePos&encoder_flag_mask != 0 {
+	io.Copy(w, e.output)
+	e.output.Reset()
+}
+
+func (e *CrumbRLEEncoder) Finalize(w io.Writer) {
+	e.flushPacket()
+	for e.bytePos != 0 {
 		e.writeBit(false)
 	}
 }
@@ -89,25 +98,35 @@ func (e *CrumbRLEEncoder) Len() int {
 	return e.output.Len()
 }
 
-func (e *CrumbRLEEncoder) Bytes() []byte {
-	e.Flush()
-	return e.output.Bytes()
-}
-
 type CrumbRLEDecoder struct {
-	data      *bytes.Reader
+	data      io.ByteReader
 	packetLen int
 	curByte   byte
 	bytePos   byte
 }
 
-func NewCrumbRLEDecoder(data *bytes.Reader) *CrumbRLEDecoder {
+func NewCrumbRLEDecoder(data io.ByteReader) *CrumbRLEDecoder {
 	out := &CrumbRLEDecoder{data: data}
 	out.bytePos = 8
-	if b, _ := out.readBit(); !b {
-		out.beginRLEPacket()
-	}
 	return out
+}
+
+func (d *CrumbRLEDecoder) ReadHeader(bits int) (uint32, bool) {
+	var header uint32
+	b, e := d.readBit()
+	for i := 0; i < bits; i++ {
+		if !e {
+			return header, e
+		}
+		if b {
+			header |= 1 << i
+		}
+		b, e = d.readBit()
+	}
+	if !b {
+		d.beginRLEPacket()
+	}
+	return header, e
 }
 
 func (d *CrumbRLEDecoder) readBit() (bool, bool) {
