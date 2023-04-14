@@ -16,7 +16,7 @@ func XORTheseArrays(data, rodata []byte) []byte {
 }
 
 type WorkerWorkerEncodeThreadData struct {
-	e    DiffRLEEncoder
+	e    *DiffRLEEncoder
 	data []byte
 	diff bool
 }
@@ -46,7 +46,7 @@ func WorkerWorkerEncodeThread(c chan WorkerWorkerEncodeThreadData) {
 }
 
 type WorkerEncodeThreadData struct {
-	e     DiffRLEEncoder
+	e     *DiffRLEEncoder
 	data1 []byte
 	data2 []byte
 	diff  bool

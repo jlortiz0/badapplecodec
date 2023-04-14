@@ -34,8 +34,8 @@ func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
 	return e.WriteCrumb(b)
 }
 
-func (d DiffRLEEncoder) Copy() DiffRLEEncoder {
-	return DiffRLEEncoder{CrumbRLEEncoder: d.CrumbRLEEncoder.Copy(), curBit: d.curBit}
+func (d *DiffRLEEncoder) Copy() *DiffRLEEncoder {
+	return &DiffRLEEncoder{CrumbRLEEncoder: d.CrumbRLEEncoder.Copy(), curBit: d.curBit}
 }
 
 type DiffRLEDecoder struct {
