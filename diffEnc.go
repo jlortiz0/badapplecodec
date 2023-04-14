@@ -1,8 +1,14 @@
 package vidcomp
 
+import "io"
+
 type DiffRLEEncoder struct {
 	*CrumbRLEEncoder
 	curBit bool
+}
+
+func NewDiffRLEEncoder() *DiffRLEEncoder {
+	return &DiffRLEEncoder{NewCrumbRLEEncoder(), false}
 }
 
 func (e *DiffRLEEncoder) BeginFrame(header uint32, headerLen int, crumb byte) {
@@ -28,9 +34,17 @@ func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
 	return e.WriteCrumb(b)
 }
 
+func (d DiffRLEEncoder) Copy() DiffRLEEncoder {
+	return DiffRLEEncoder{CrumbRLEEncoder: d.CrumbRLEEncoder.Copy(), curBit: d.curBit}
+}
+
 type DiffRLEDecoder struct {
 	*CrumbRLEDecoder
 	curBit bool
+}
+
+func NewDiffRLEDecoder(data io.ByteReader) *DiffRLEDecoder {
+	return &DiffRLEDecoder{NewCrumbRLEDecoder(data), false}
 }
 
 func (d *DiffRLEDecoder) ReadHeader(bits int) (uint32, bool) {
@@ -60,3 +74,7 @@ func (d *DiffRLEDecoder) ReadCrumb() (byte, bool) {
 	}
 	return b, false
 }
+
+// func (d DiffRLEDecoder) Copy() DiffRLEDecoder {
+// 	return DiffRLEDecoder{CrumbRLEDecoder: d.CrumbRLEDecoder.Copy(), curBit: d.curBit}
+// }

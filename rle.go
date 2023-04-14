@@ -98,6 +98,12 @@ func (e *CrumbRLEEncoder) Len() int {
 	return e.output.Len()
 }
 
+func (e *CrumbRLEEncoder) Copy() *CrumbRLEEncoder {
+	data := make([]byte, e.output.Len(), e.output.Cap())
+	copy(data, e.output.Bytes())
+	return &CrumbRLEEncoder{output: bytes.NewBuffer(data), packetLen: e.packetLen, bytePos: e.bytePos, curByte: e.curByte}
+}
+
 type CrumbRLEDecoder struct {
 	data      io.ByteReader
 	packetLen int
