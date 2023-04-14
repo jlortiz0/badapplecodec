@@ -1,4 +1,4 @@
-package main
+package vidcomp
 
 import (
 	"C"
@@ -72,7 +72,7 @@ func (e *CrumbRLEEncoder) Flush(w io.Writer) {
 	e.output.Reset()
 }
 
-func (e *CrumbRLEEncoder) Finalize(w io.Writer) {
+func (e *CrumbRLEEncoder) Finalize() {
 	e.flushPacket()
 	for e.bytePos != 0 {
 		e.writeBit(false)
@@ -83,11 +83,11 @@ func (e *CrumbRLEEncoder) flushPacket() {
 	if e.packetLen != 0 {
 		e.packetLen++
 		pos := 63 - int(C.__builtin_clzll(C.ulonglong(e.packetLen)))
-		for i := 2; i < pos; i++ {
+		for i := 1; i < pos; i++ {
 			e.writeBit(true)
 		}
 		e.writeBit(false)
-		for i := pos - 2; i >= 0; i-- {
+		for i := pos - 1; i >= 0; i-- {
 			e.writeBit(e.packetLen&(1<<i) != 0)
 		}
 		e.packetLen = 0
@@ -146,7 +146,7 @@ func (d *CrumbRLEDecoder) readBit() (bool, bool) {
 func (d *CrumbRLEDecoder) beginRLEPacket() {
 	pos := 1
 	b, e := d.readBit()
-	for !b {
+	for b {
 		pos++
 		b, e = d.readBit()
 	}
