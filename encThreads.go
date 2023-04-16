@@ -1,4 +1,4 @@
-package badapplecodec
+package main
 
 const (
 	HEADER_NORMAL uint32 = 0

@@ -1,4 +1,4 @@
-package badapplecodec
+package main
 
 import (
 	"C"

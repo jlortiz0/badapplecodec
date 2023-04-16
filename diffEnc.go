@@ -1,4 +1,4 @@
-package badapplecodec
+package main
 
 import "io"
 
@@ -31,7 +31,7 @@ func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
 		b |= 1
 		e.curBit = b2
 	}
-	return e.WriteCrumb(b)
+	return e.CrumbRLEEncoder.WriteCrumb(b)
 }
 
 func (d *DiffRLEEncoder) Copy() *DiffRLEEncoder {
@@ -72,7 +72,7 @@ func (d *DiffRLEDecoder) ReadCrumb() (byte, bool) {
 	if d.curBit {
 		b |= 1
 	}
-	return b, false
+	return b, true
 }
 
 // func (d DiffRLEDecoder) Copy() DiffRLEDecoder {

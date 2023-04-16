@@ -1,2 +1,6 @@
 github.com/jlortiz0/multisav/streamy v1.3.0 h1:fGmK4y2icPc6UjyJA4juxJcyaBCU6bt+CnDvqb/n9rA=
 github.com/jlortiz0/multisav/streamy v1.3.0/go.mod h1:Mz8jW1rTk/uVMxNj9tBmgWIBxbZ/li4ag2xBHGmQos0=
+github.com/jlortiz0/multisav/streamy v1.3.1 h1:qAqzYH1lmPwdMv9BFxKBu+HqEAKvkt2+q5t9lwUt4ag=
+github.com/jlortiz0/multisav/streamy v1.3.1/go.mod h1:Mz8jW1rTk/uVMxNj9tBmgWIBxbZ/li4ag2xBHGmQos0=
+github.com/veandco/go-sdl2 v0.4.34 h1:dqbUhV/SSJ35grdYTLv3iVxtO1NzNmgzMV//hyCyypY=
+github.com/veandco/go-sdl2 v0.4.34/go.mod h1:OROqMhHD43nT4/i9crJukyVecjPNYYuCofep6SNiAjY=
