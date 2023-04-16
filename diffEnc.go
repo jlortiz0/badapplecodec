@@ -11,9 +11,20 @@ func NewDiffRLEEncoder() *DiffRLEEncoder {
 	return &DiffRLEEncoder{NewCrumbRLEEncoder(), false}
 }
 
-func (e *DiffRLEEncoder) BeginFrame(header uint32, headerLen int, crumb byte) {
+func (e *DiffRLEEncoder) BeginFrame(header uint32, headerLen int, b byte) {
 	e.curBit = false
-	e.CrumbRLEEncoder.BeginFrame(header, headerLen, crumb)
+	b1 := b&2 != 0
+	b2 := b&1 != 0
+	b = 0
+	if b1 != e.curBit {
+		b |= 2
+		e.curBit = b1
+	}
+	if b2 != e.curBit {
+		b |= 1
+		e.curBit = b2
+	}
+	e.CrumbRLEEncoder.BeginFrame(header, headerLen, b)
 }
 
 func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
