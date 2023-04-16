@@ -4,17 +4,14 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
-	"image/color"
 	"io"
 	"os"
 	"strings"
 	"time"
 	"unsafe"
 
-	"github.com/adrg/sysfont"
 	"github.com/jlortiz0/multisav/streamy"
 	"github.com/veandco/go-sdl2/sdl"
-	"github.com/veandco/go-sdl2/ttf"
 )
 
 func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- struct{}) {
@@ -47,7 +44,7 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 		c2 <- WorkerEncodeThreadData{e: e.Copy(), data1: split1, data2: split2, diff: true}
 		d1 := <-c1
 		d2 := <-c2
-		if true || d1.e.Len() < d2.e.Len() {
+		if d1.e.Len() < d2.e.Len() {
 			e = d1.e
 		} else {
 			e = d2.e
@@ -64,8 +61,6 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 	}
 }
 
-var header1, header2 uint32
-
 func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	buf := bufio.NewReader(rd)
 	lastFrame := make([]byte, 4)
@@ -78,10 +73,9 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	defer close(c)
 	b1 := make([]byte, (h*w)/2)
 	b2 := make([]byte, (h*w)/2)
-	var e bool
 
 	for {
-		header1, e = d.ReadHeader(2)
+		header1, e := d.ReadHeader(2)
 		if !e {
 			break
 		}
@@ -91,7 +85,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 				panic("unexpected EOF")
 			}
 		}
-		header2, e = d.ReadHeader(2)
+		header2, e := d.ReadHeader(2)
 		if !e {
 			panic("unexpected EOF")
 		}
@@ -188,24 +182,13 @@ func main2() {
 	sdl.EventState(sdl.KEYUP, sdl.DISABLE)
 	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "0")
 
-	window, display, err := sdl.CreateWindowAndRenderer(1024, 768, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
+	window, display, err := sdl.CreateWindowAndRenderer(1024, 768, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
 	}
 	window.SetTitle("Bad Apple Encoder - " + os.Args[2])
 	defer window.Destroy()
 	defer display.Destroy()
-	var fontName string
-	for _, v := range sysfont.NewFinder(nil).List() {
-		if v.Name == "Times New Roman" {
-			fontName = v.Filename
-		} else if v.Name == "Ubuntu Mono" || strings.HasSuffix(v.Filename, "UbuntuMono-Regular.ttf") {
-			fontName = v.Filename
-			break
-		}
-	}
-	ttf.Init()
-	font, _ := ttf.OpenFont(fontName, 24)
 	tex, err := display.CreateTexture(uint32(sdl.PIXELFORMAT_RGBA32), sdl.TEXTUREACCESS_STREAMING, w, h)
 	if err != nil {
 		panic(err)
@@ -224,7 +207,6 @@ func main2() {
 	t := time.Tick(time.Second / 30)
 	display.SetDrawColor(0, 0, 0, 0)
 	waitMode := false
-	frame := 0
 	for {
 		temp, ok := <-c
 		if !ok {
@@ -237,12 +219,7 @@ func main2() {
 		}
 		tex.Update(&sdl.Rect{H: h, W: w}, unsafe.Pointer(&temp2[0]), int(w)*4)
 		display.Clear()
-		display.Copy(tex, nil, &sdl.Rect{H: sy, W: sx})
-		txtSurf, _ := font.RenderUTF8Shaded(fmt.Sprintf("%d %d %d", frame, header1, header2), sdl.Color(color.RGBAModel.Convert(color.White).(color.RGBA)), sdl.Color(color.RGBAModel.Convert(color.Black).(color.RGBA)))
-		texture2, _ := display.CreateTextureFromSurface(txtSurf)
-		display.Copy(texture2, nil, &sdl.Rect{X: 10, Y: 768 - 32, H: txtSurf.H, W: txtSurf.W})
-		texture2.Destroy()
-		txtSurf.Free()
+		display.Copy(tex, nil, &sdl.Rect{X: (1024 - sx) / 2, Y: (768 - sy) / 2, H: sy, W: sx})
 		display.Present()
 		event := sdl.PollEvent()
 		if waitMode && event == nil {
@@ -274,7 +251,6 @@ func main2() {
 			}
 		}
 		<-t
-		frame++
 	}
 	event := sdl.WaitEvent()
 	for event.GetType() != sdl.KEYDOWN && event.GetType() != sdl.QUIT {
