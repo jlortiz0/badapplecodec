@@ -74,9 +74,9 @@ func WorkerEncodeThread(c chan WorkerEncodeThreadData) {
 		swap := d.e.Len() > d2.e.Len()
 		if swap {
 			d.e = d2.e
-			c2 <- WorkerWorkerEncodeThreadData{e: d.e.Copy(), data: d.data2}
-		} else {
 			c2 <- WorkerWorkerEncodeThreadData{e: d.e.Copy(), data: d.data1}
+		} else {
+			c2 <- WorkerWorkerEncodeThreadData{e: d.e.Copy(), data: d.data2}
 		}
 		data := XORTheseArrays(d.data1, d.data2)
 		d.e.BeginFrame(HEADER_XOR|HEADER_DIFF, 2, data[0])
