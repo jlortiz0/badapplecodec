@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"strings"
 	"time"
 	"unsafe"
 
+	"github.com/adrg/sysfont"
 	"github.com/jlortiz0/multisav/streamy"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- struct{}) {
@@ -41,11 +44,13 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 		split1, split2 := splitNibbles(b)
 		c1 <- WorkerEncodeThreadData{e: e.Copy(), data1: split1, data2: split2}
 		split1, split2 = splitNibbles(XORTheseArrays(b, lastFrame))
-		c2 <- WorkerEncodeThreadData{e: e, data1: split1, data2: split2, diff: true}
+		c2 <- WorkerEncodeThreadData{e: e.Copy(), data1: split1, data2: split2, diff: true}
 		d1 := <-c1
 		d2 := <-c2
-		if d1.e.Len() < d2.e.Len() {
+		if true || d1.e.Len() < d2.e.Len() {
 			e = d1.e
+		} else {
+			e = d2.e
 		}
 		e.Flush(buf)
 		temp := b
@@ -59,6 +64,8 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 	}
 }
 
+var header1, header2 uint32
+
 func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	buf := bufio.NewReader(rd)
 	lastFrame := make([]byte, 4)
@@ -71,9 +78,10 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	defer close(c)
 	b1 := make([]byte, (h*w)/2)
 	b2 := make([]byte, (h*w)/2)
+	var e bool
 
 	for {
-		header1, e := d.ReadHeader(2)
+		header1, e = d.ReadHeader(2)
 		if !e {
 			break
 		}
@@ -83,7 +91,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 				panic("unexpected EOF")
 			}
 		}
-		header2, e := d.ReadHeader(2)
+		header2, e = d.ReadHeader(2)
 		if !e {
 			panic("unexpected EOF")
 		}
@@ -117,6 +125,8 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 
 func main() {
 	if len(os.Args) < 2 {
+		os.Args = append(os.Args, "play", "badapple.bac")
+		main2()
 		fmt.Println("Usage:", os.Args[0], "encode <video> <output> or", os.Args[0], "play <.bac file>")
 		return
 	}
@@ -162,6 +172,7 @@ func main2() {
 		panic(err)
 	}
 	defer f.Close()
+	f.Seek(4, 0)
 	c := make(chan []byte)
 	go NewImageDecoder(c, f)
 	temp := <-c
@@ -175,22 +186,45 @@ func main2() {
 	defer sdl.Quit()
 	sdl.EventState(sdl.MOUSEMOTION, sdl.DISABLE)
 	sdl.EventState(sdl.KEYUP, sdl.DISABLE)
-	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "best")
+	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "0")
 
-	window, display, err := sdl.CreateWindowAndRenderer(w, h, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
+	window, display, err := sdl.CreateWindowAndRenderer(1024, 768, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
 	if err != nil {
 		panic(err)
 	}
 	window.SetTitle("Bad Apple Encoder - " + os.Args[2])
 	defer window.Destroy()
 	defer display.Destroy()
+	var fontName string
+	for _, v := range sysfont.NewFinder(nil).List() {
+		if v.Name == "Times New Roman" {
+			fontName = v.Filename
+		} else if v.Name == "Ubuntu Mono" || strings.HasSuffix(v.Filename, "UbuntuMono-Regular.ttf") {
+			fontName = v.Filename
+			break
+		}
+	}
+	ttf.Init()
+	font, _ := ttf.OpenFont(fontName, 24)
 	tex, err := display.CreateTexture(uint32(sdl.PIXELFORMAT_RGBA32), sdl.TEXTUREACCESS_STREAMING, w, h)
 	if err != nil {
 		panic(err)
 	}
 	defer tex.Destroy()
+	sx := w
+	sy := h
+	if h*1024 >= w*768 {
+		sy = 768
+		sx = 768 * w / h
+	} else {
+		sx = 1024
+		sy = 1024 * h / w
+	}
 	temp2 := make([]byte, h*w*4)
 	t := time.Tick(time.Second / 30)
+	display.SetDrawColor(0, 0, 0, 0)
+	waitMode := false
+	frame := 0
 	for {
 		temp, ok := <-c
 		if !ok {
@@ -201,13 +235,49 @@ func main2() {
 			temp2[4*i+1] = x
 			temp2[4*i+2] = x
 		}
-		tex.Update(&sdl.Rect{H: h, W: w}, unsafe.Pointer(&temp2[0]), int(w))
-		display.Copy(tex, nil, &sdl.Rect{H: h, W: w})
+		tex.Update(&sdl.Rect{H: h, W: w}, unsafe.Pointer(&temp2[0]), int(w)*4)
+		display.Clear()
+		display.Copy(tex, nil, &sdl.Rect{H: sy, W: sx})
+		txtSurf, _ := font.RenderUTF8Shaded(fmt.Sprintf("%d %d %d", frame, header1, header2), sdl.Color(color.RGBAModel.Convert(color.White).(color.RGBA)), sdl.Color(color.RGBAModel.Convert(color.Black).(color.RGBA)))
+		texture2, _ := display.CreateTextureFromSurface(txtSurf)
+		display.Copy(texture2, nil, &sdl.Rect{X: 10, Y: 768 - 32, H: txtSurf.H, W: txtSurf.W})
+		texture2.Destroy()
+		txtSurf.Free()
 		display.Present()
+		event := sdl.PollEvent()
+		if waitMode && event == nil {
+			event = &sdl.UserEvent{}
+		}
+		for event != nil {
+			if event.GetType() == sdl.QUIT {
+				return
+			}
+			if event.GetType() == sdl.KEYDOWN {
+				ev := event.(*sdl.KeyboardEvent)
+				switch ev.Keysym.Sym {
+				case sdl.K_ESCAPE:
+					return
+				case sdl.K_b:
+					XORTheseArrays(nil, nil)
+				case sdl.K_SPACE:
+					waitMode = !waitMode
+				case sdl.K_RETURN:
+					fallthrough
+				case sdl.K_RETURN2:
+					event = nil
+					continue
+				}
+			}
+			event = sdl.PollEvent()
+			if event == nil && waitMode {
+				event = sdl.WaitEvent()
+			}
+		}
 		<-t
+		frame++
 	}
 	event := sdl.WaitEvent()
-	for event.GetType() != sdl.KEYDOWN {
+	for event.GetType() != sdl.KEYDOWN && event.GetType() != sdl.QUIT {
 		event = sdl.WaitEvent()
 	}
 }
