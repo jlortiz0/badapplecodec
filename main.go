@@ -14,6 +14,8 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+var ccColors = []byte{0x19, 0x4C, 0x99, 0xF0}
+
 func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- struct{}) {
 	buf := bufio.NewWriter(wr)
 	defer buf.Flush()
@@ -36,7 +38,19 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 			break
 		}
 		for i := 0; i < len(b); i++ {
-			b[i] = b2[i*4] >> 6
+			bestInd := 0
+			bestDiff := byte(255)
+			for j, x := range ccColors {
+				diff := int16(b2[i*4]) - int16(x)
+				if diff < 0 {
+					diff = -diff
+				}
+				if byte(diff) < bestDiff {
+					bestDiff = byte(diff)
+					bestInd = j
+				}
+			}
+			b[i] = byte(bestInd)
 		}
 		split1, split2 := splitNibbles(b)
 		c1 <- WorkerEncodeThreadData{e: e.Copy(), data1: split1, data2: split2}
@@ -62,15 +76,19 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 }
 
 func NewImageDecoder(c chan<- []byte, rd io.Reader) {
+	defer close(c)
 	buf := bufio.NewReader(rd)
 	lastFrame := make([]byte, 4)
+	buf.Read(lastFrame)
+	if lastFrame[0] != 'J' || lastFrame[1] != 'B' || lastFrame[2] != 'A' || lastFrame[3] != 'C' {
+		return
+	}
 	buf.Read(lastFrame)
 	c <- lastFrame
 	h := int(binary.BigEndian.Uint16(lastFrame))
 	w := int(binary.BigEndian.Uint16(lastFrame[2:]))
 	lastFrame = make([]byte, h*w)
 	d := NewDiffRLEDecoder(buf)
-	defer close(c)
 	b1 := make([]byte, (h*w)/2)
 	b2 := make([]byte, (h*w)/2)
 
@@ -110,8 +128,8 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 		lastFrame = b
 
 		temp := make([]byte, len(b))
-		for i := 0; i < len(b); i++ {
-			temp[i] = b[i] << 6
+		for i, x := range b {
+			temp[i] = ccColors[x]
 		}
 		c <- temp
 	}
@@ -155,7 +173,9 @@ func main() {
 		c <- b2
 		err = s.Read(b2)
 	}
-	fmt.Println(err)
+	if err.Error() != "End of file" {
+		panic(err)
+	}
 	close(c)
 	<-c2
 }
@@ -166,10 +186,13 @@ func main2() {
 		panic(err)
 	}
 	defer f.Close()
-	f.Seek(4, 0)
 	c := make(chan []byte)
 	go NewImageDecoder(c, f)
 	temp := <-c
+	if len(temp) == 0 {
+		fmt.Println("Invalid file!")
+		return
+	}
 	h := int32(binary.BigEndian.Uint16(temp))
 	w := int32(binary.BigEndian.Uint16(temp[2:]))
 
