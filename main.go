@@ -100,7 +100,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 		for i := 0; i < len(b1); i++ {
 			b1[i], e = d.ReadCrumb()
 			if !e {
-				panic("unexpected EOF")
+				return
 			}
 		}
 		header2, e := d.ReadHeader(2)
@@ -227,7 +227,12 @@ func main2() {
 		sy = 1024 * h / w
 	}
 	temp2 := make([]byte, h*w*4)
-	t := time.Tick(time.Second / 30)
+	var t <-chan time.Time
+	if h > 20 {
+		t = time.Tick(time.Second / 10)
+	} else {
+		t = time.Tick(time.Second / 20)
+	}
 	display.SetDrawColor(0, 0, 0, 0)
 	waitMode := false
 	for {
