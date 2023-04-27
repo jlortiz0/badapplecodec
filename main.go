@@ -217,6 +217,8 @@ func main2() {
 		panic(err)
 	}
 	defer tex.Destroy()
+	h2 := h
+	h = (h * 4) / 3
 	sx := w
 	sy := h
 	if h*1024 >= w*768 {
@@ -226,6 +228,7 @@ func main2() {
 		sx = 1024
 		sy = 1024 * h / w
 	}
+	h = h2
 	temp2 := make([]byte, h*w*4)
 	var t <-chan time.Time
 	if h > 20 {
