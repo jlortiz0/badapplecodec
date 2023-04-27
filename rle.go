@@ -95,7 +95,7 @@ func (e *CrumbRLEEncoder) flushPacket() {
 }
 
 func (e *CrumbRLEEncoder) Len() int {
-	return e.output.Len()
+	return e.output.Len() * 8 + int(e.bytePos)
 }
 
 func (e *CrumbRLEEncoder) Copy() *CrumbRLEEncoder {
