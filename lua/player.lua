@@ -20,11 +20,21 @@ local function mainThread(fname)
       term.setBackgroundColor(colors.black)
       term.clear()
       term.setCursorPos(startW,startH)
+      lastBg = colors.black
+      bgRun = ""
       for _,v in ipairs(data) do
-          term.setBackgroundColor(v)
-          write(" ")
+          if v == lastBg then
+             bgRun = bgRun .. " "
+          else
+              write(bgRun)
+              term.setBackgroundColor(v)
+              lastBg = v
+              bgRun = " "
+          end
           wpos = wpos + 1
           if wpos > w then
+              write(bgRun)
+              bgRun = ""
               hpos = hpos + 1
               term.setCursorPos(startW, hpos)
               wpos = 1
