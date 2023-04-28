@@ -23,14 +23,14 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 
 	e := NewDiffRLEEncoder(w)
 	b := make([]byte, h*w)
-	lastFrame := make([]byte, len(b))
+	// lastFrame := make([]byte, len(b))
 
 	for {
 		b2, ok := <-c
 		if !ok {
 			break
 		}
-		samp := 0
+		samp := make([]int, len(ccColors))
 		for i := 0; i < len(b); i++ {
 			bestInd := 0
 			bestDiff := byte(255)
@@ -46,22 +46,25 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 			}
 			b[i] = byte(bestInd)
 			if i%w == 0 {
-				samp += bestInd >> 1
+				samp[byte(bestInd)]++ // ^lastFrame[i]]++
 			}
 		}
-		if samp > h {
-			samp = 1
-		} else {
-			samp = 0
+		bestInd := 0
+		bestDiff := 0
+		for i, x := range samp {
+			if x > bestDiff {
+				bestInd = i
+				bestDiff = x
+			}
 		}
-		e.BeginFrame(uint32(samp), 1, b[0]^lastFrame[0])
-		for i, x := range b[1:] {
-			e.WriteCrumb(x ^ lastFrame[i+1])
+		e.BeginFrame(0, 0, b[0], byte(bestInd)) // ^lastFrame[0], byte(bestInd))
+		for _, x := range b[1:] {
+			e.WriteCrumb(x) //  ^ lastFrame[i+1])
 		}
 		e.Flush(buf)
-		temp := b
-		b = lastFrame
-		lastFrame = temp
+		// temp := b
+		// b = lastFrame
+		// lastFrame = temp
 	}
 	e.Finalize()
 	e.Flush(buf)
@@ -82,12 +85,12 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	c <- lastFrame
 	h := int(binary.BigEndian.Uint16(lastFrame))
 	w := int(binary.BigEndian.Uint16(lastFrame[2:]))
-	lastFrame = make([]byte, h*w)
+	// lastFrame = make([]byte, h*w)
 	d := NewDiffRLEDecoder(buf, w)
 	b := make([]byte, (h * w))
 
 	for {
-		_, e := d.ReadHeader(1)
+		_, e := d.ReadHeader(0)
 		if !e {
 			break
 		}
@@ -96,7 +99,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 			if !e {
 				return
 			}
-			b[i] = x ^ lastFrame[i]
+			b[i] = x // ^ lastFrame[i]
 		}
 
 		temp := make([]byte, len(b))
@@ -104,9 +107,9 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 			temp[i] = ccColors[x]
 		}
 		c <- temp
-		temp = lastFrame
-		lastFrame = b
-		b = temp
+		// temp = lastFrame
+		// lastFrame = b
+		// b = temp
 	}
 }
 

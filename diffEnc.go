@@ -6,19 +6,19 @@ type DiffRLEEncoder struct {
 	*CrumbRLEEncoder
 	lastCrumb byte
 	width     int
-	fBit      bool
+	mode      byte
 	pos       int
 }
 
 func NewDiffRLEEncoder(width int) *DiffRLEEncoder {
-	return &DiffRLEEncoder{NewCrumbRLEEncoder(), 0, width, false, 0}
+	return &DiffRLEEncoder{CrumbRLEEncoder: NewCrumbRLEEncoder(), width: width}
 }
 
-func (e *DiffRLEEncoder) BeginFrame(header uint32, headerLen int, b byte) {
+func (e *DiffRLEEncoder) BeginFrame(header uint32, headerLen int, b byte, mode byte) {
 	e.lastCrumb = b
 	e.pos = 1
-	e.fBit = header&1 != 0
-	e.CrumbRLEEncoder.BeginFrame(header, headerLen, b)
+	e.mode = mode
+	e.CrumbRLEEncoder.BeginFrame(header<<2+uint32(mode), headerLen+2, b^e.mode)
 }
 
 func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
@@ -27,11 +27,7 @@ func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
 	}
 	if e.pos == e.width {
 		e.pos = 0
-		if e.fBit {
-			e.lastCrumb = 3
-		} else {
-			e.lastCrumb = 0
-		}
+		e.lastCrumb = e.mode
 	}
 	e.pos++
 	b2 := b
@@ -47,20 +43,21 @@ func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
 type DiffRLEDecoder struct {
 	*CrumbRLEDecoder
 	lastCrumb byte
+	mode      byte
 	width     int
-	fBit      bool
 	pos       int
 }
 
 func NewDiffRLEDecoder(data io.ByteReader, width int) *DiffRLEDecoder {
-	return &DiffRLEDecoder{NewCrumbRLEDecoder(data), 0, width, false, 0}
+	return &DiffRLEDecoder{CrumbRLEDecoder: NewCrumbRLEDecoder(data), width: width}
 }
 
 func (d *DiffRLEDecoder) ReadHeader(bits int) (uint32, bool) {
 	d.pos = d.width
-	header, ok := d.CrumbRLEDecoder.ReadHeader(bits)
+	header, ok := d.CrumbRLEDecoder.ReadHeader(bits + 2)
 	if ok {
-		d.fBit = header&1 != 0
+		d.mode = byte(header & 3)
+		header >>= 2
 	}
 	return header, ok
 }
@@ -72,11 +69,7 @@ func (d *DiffRLEDecoder) ReadCrumb() (byte, bool) {
 	}
 	if d.pos == d.width {
 		d.pos = 0
-		if d.fBit {
-			d.lastCrumb = 3
-		} else {
-			d.lastCrumb = 0
-		}
+		d.lastCrumb = d.mode
 	}
 	d.pos++
 	b ^= d.lastCrumb
