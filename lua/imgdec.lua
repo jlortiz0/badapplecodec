@@ -90,7 +90,6 @@ local ccColors = { colors.black, colors.gray, colors.lightGray, colors.white }
 local function idecRead(d)
   local len = d.h * d.w
   d.dec.readHeader(0)
-  if header1 == nil then return nil end
   plane = {}
   for i = 1, len do
     plane[i] = d.dec.readCrumb()

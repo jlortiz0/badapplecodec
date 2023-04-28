@@ -48,7 +48,7 @@ local function mainThread(fname)
       local alId
       repeat
           _, alId = os.pullEvent("timer")
-      until alId == almId
+      until alId == almID
       almID = os.startTimer(0.05)
   end
   d.destroy()
