@@ -21,7 +21,7 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 	defer buf.Flush()
 	buf.Write(binary.BigEndian.AppendUint16(binary.BigEndian.AppendUint16([]byte{'J', 'B', 'A', 'C'}, uint16(h)), uint16(w)))
 
-	e := NewDiffRLEEncoder()
+	e := NewCrumbRLEEncoder()
 	b := make([]byte, h*w)
 	lastFrame := make([]byte, len(b))
 
@@ -86,7 +86,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	h := int(binary.BigEndian.Uint16(lastFrame))
 	w := int(binary.BigEndian.Uint16(lastFrame[2:]))
 	lastFrame = make([]byte, h*w)
-	d := NewDiffRLEDecoder(buf)
+	d := NewCrumbRLEDecoder(buf)
 	b := make([]byte, (h * w))
 
 	for {
