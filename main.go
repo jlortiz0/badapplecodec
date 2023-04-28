@@ -231,11 +231,7 @@ func main2() {
 	h = h2
 	temp2 := make([]byte, h*w*4)
 	var t <-chan time.Time
-	if h > 20 {
-		t = time.Tick(time.Second / 10)
-	} else {
-		t = time.Tick(time.Second / 20)
-	}
+    t = time.Tick(time.Second / 20)
 	display.SetDrawColor(0, 0, 0, 0)
 	waitMode := false
 	for {
