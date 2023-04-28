@@ -4,26 +4,15 @@ import "io"
 
 type DiffRLEEncoder struct {
 	*CrumbRLEEncoder
-	curBit bool
+	lastCrumb byte
 }
 
 func NewDiffRLEEncoder() *DiffRLEEncoder {
-	return &DiffRLEEncoder{NewCrumbRLEEncoder(), false}
+	return &DiffRLEEncoder{NewCrumbRLEEncoder(), 0}
 }
 
 func (e *DiffRLEEncoder) BeginFrame(header uint32, headerLen int, b byte) {
-	e.curBit = false
-	b1 := b&2 != 0
-	b2 := b&1 != 0
-	b = 0
-	if b1 != e.curBit {
-		b |= 2
-		e.curBit = b1
-	}
-	if b2 != e.curBit {
-		b |= 1
-		e.curBit = b2
-	}
+	e.lastCrumb = b
 	e.CrumbRLEEncoder.BeginFrame(header, headerLen, b)
 }
 
@@ -31,35 +20,27 @@ func (e *DiffRLEEncoder) WriteCrumb(b byte) error {
 	if b&0xfc != 0 {
 		return ErrNotCrumb
 	}
-	b1 := b&2 != 0
-	b2 := b&1 != 0
-	b = 0
-	if b1 != e.curBit {
-		b |= 2
-		e.curBit = b1
-	}
-	if b2 != e.curBit {
-		b |= 1
-		e.curBit = b2
-	}
+	b2 := b
+	b ^= e.lastCrumb
+	e.lastCrumb = b2
 	return e.CrumbRLEEncoder.WriteCrumb(b)
 }
 
-func (d *DiffRLEEncoder) Copy() *DiffRLEEncoder {
-	return &DiffRLEEncoder{CrumbRLEEncoder: d.CrumbRLEEncoder.Copy(), curBit: d.curBit}
-}
+// func (d *DiffRLEEncoder) Copy() *DiffRLEEncoder {
+// 	return &DiffRLEEncoder{CrumbRLEEncoder: d.CrumbRLEEncoder.Copy(), lastCrumb: d.lastCrumb}
+// }
 
 type DiffRLEDecoder struct {
 	*CrumbRLEDecoder
-	curBit bool
+	lastCrumb byte
 }
 
 func NewDiffRLEDecoder(data io.ByteReader) *DiffRLEDecoder {
-	return &DiffRLEDecoder{NewCrumbRLEDecoder(data), false}
+	return &DiffRLEDecoder{NewCrumbRLEDecoder(data), 0}
 }
 
 func (d *DiffRLEDecoder) ReadHeader(bits int) (uint32, bool) {
-	d.curBit = false
+	d.lastCrumb = 0
 	return d.CrumbRLEDecoder.ReadHeader(bits)
 }
 
@@ -68,21 +49,8 @@ func (d *DiffRLEDecoder) ReadCrumb() (byte, bool) {
 	if !e {
 		return b, e
 	}
-	b1 := b&2 != 0
-	b2 := b&1 != 0
-	b = 0
-	if b1 {
-		d.curBit = !d.curBit
-	}
-	if d.curBit {
-		b |= 2
-	}
-	if b2 {
-		d.curBit = !d.curBit
-	}
-	if d.curBit {
-		b |= 1
-	}
+	b ^= d.lastCrumb
+	d.lastCrumb = b
 	return b, true
 }
 

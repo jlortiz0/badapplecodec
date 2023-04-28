@@ -95,14 +95,14 @@ func (e *CrumbRLEEncoder) flushPacket() {
 }
 
 func (e *CrumbRLEEncoder) Len() int {
-	return e.output.Len() * 8 + int(e.bytePos)
+	return e.output.Len()*8 + int(e.bytePos)
 }
 
-func (e *CrumbRLEEncoder) Copy() *CrumbRLEEncoder {
-	data := make([]byte, e.output.Len(), e.output.Cap())
-	copy(data, e.output.Bytes())
-	return &CrumbRLEEncoder{output: bytes.NewBuffer(data), packetLen: e.packetLen, bytePos: e.bytePos, curByte: e.curByte}
-}
+// func (e *CrumbRLEEncoder) Copy() *CrumbRLEEncoder {
+// 	data := make([]byte, e.output.Len(), e.output.Cap())
+// 	copy(data, e.output.Bytes())
+// 	return &CrumbRLEEncoder{output: bytes.NewBuffer(data), packetLen: e.packetLen, bytePos: e.bytePos, curByte: e.curByte}
+// }
 
 type CrumbRLEDecoder struct {
 	data      io.ByteReader

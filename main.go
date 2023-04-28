@@ -21,13 +21,6 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 	defer buf.Flush()
 	buf.Write(binary.BigEndian.AppendUint16(binary.BigEndian.AppendUint16([]byte{'J', 'B', 'A', 'C'}, uint16(h)), uint16(w)))
 
-	c1 := make(chan WorkerEncodeThreadData)
-	c2 := make(chan WorkerEncodeThreadData)
-	go WorkerEncodeThread(c1)
-	go WorkerEncodeThread(c2)
-	defer close(c1)
-	defer close(c2)
-
 	e := NewDiffRLEEncoder()
 	b := make([]byte, h*w)
 	lastFrame := make([]byte, len(b))
@@ -52,14 +45,9 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 			}
 			b[i] = byte(bestInd)
 		}
-		c1 <- WorkerEncodeThreadData{e: e.Copy(), data: b}
-		c2 <- WorkerEncodeThreadData{e: e.Copy(), data: XORTheseArrays(b, lastFrame), diff: true}
-		d1 := <-c1
-		d2 := <-c2
-		if d1.e.Len() < d2.e.Len() {
-			e = d1.e
-		} else {
-			e = d2.e
+		e.BeginFrame(0, 1, b[0]^lastFrame[0])
+		for i, x := range b[1:] {
+			e.WriteCrumb(x ^ lastFrame[i+1])
 		}
 		e.Flush(buf)
 		temp := b
@@ -90,18 +78,16 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	b := make([]byte, (h * w))
 
 	for {
-		header, e := d.ReadHeader(2)
+		_, e := d.ReadHeader(1)
 		if !e {
 			break
 		}
 		for i := 0; i < len(b); i++ {
-			b[i], e = d.ReadCrumb()
+			x, e := d.ReadCrumb()
 			if !e {
 				return
 			}
-		}
-		if header&HEADER_DIFF != 0 {
-			b = XORTheseArrays(b, lastFrame)
+			b[i] = x ^ lastFrame[i]
 		}
 
 		temp := make([]byte, len(b))
@@ -244,7 +230,7 @@ func main2() {
 				case sdl.K_ESCAPE:
 					return
 				case sdl.K_b:
-					XORTheseArrays(nil, nil)
+					event.GetTimestamp()
 				case sdl.K_SPACE:
 					waitMode = !waitMode
 				case sdl.K_RETURN:
