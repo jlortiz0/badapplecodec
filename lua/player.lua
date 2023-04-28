@@ -10,16 +10,15 @@ local function mainThread(fname)
       d.destroy()
       return
   end
-  local data, bgColor = d.read()
+  local data = d.read()
   local almID = os.startTimer(0.05)
   local startW = math.floor((mw - w) / 2) + 1
   local startH = math.floor((mh - h) / 2) + 1
   local wpos = 1
   local hpos = startH
+  local lastBg = colors.black
   while data ~= nil do
-      term.setBackgroundColor(bgColor)
       term.setCursorPos(startW,startH)
-      local lastBg = bgColor
       bgRun = ""
       for _,v in ipairs(data) do
           if v == lastBg then
@@ -38,8 +37,6 @@ local function mainThread(fname)
                 write(bgRun)
                 bgRun = ""
               end
-              term.setBackgroundColor(bgColor)
-              lastBg = bgColor
               hpos = hpos + 1
               term.setCursorPos(startW, hpos)
               wpos = 1
@@ -62,6 +59,7 @@ if #{...} == 0 then
     return
 end
 
+term.setBackgroundColor(colors.black)
 term.clear()
 while true do
 mainThread(shell.resolve(...))

@@ -89,7 +89,7 @@ local ccColors = { colors.black, colors.gray, colors.lightGray, colors.white }
 
 local function idecRead(d)
   local len = d.h * d.w
-  header1 = d.dec.readHeader(2)
+  d.dec.readHeader(0)
   if header1 == nil then return nil end
   plane = {}
   for i = 1, len do
@@ -102,7 +102,7 @@ local function idecRead(d)
   for i,v in ipairs(plane) do
     temp[i] = ccColors[v + 1]
   end
-  return temp, ccColors[header1 + 1]
+  return temp
 end
 
 local function NewImageDecoder(fname)

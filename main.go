@@ -30,7 +30,6 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 		if !ok {
 			break
 		}
-		samp := make([]int, len(ccColors))
 		for i := 0; i < len(b); i++ {
 			bestInd := 0
 			bestDiff := byte(255)
@@ -45,19 +44,8 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 				}
 			}
 			b[i] = byte(bestInd)
-			if i%w == 0 {
-				samp[byte(bestInd)]++
-			}
 		}
-		bestInd := 0
-		bestDiff := 0
-		for i, x := range samp {
-			if x > bestDiff {
-				bestInd = i
-				bestDiff = x
-			}
-		}
-		e.BeginFrame(uint32(bestInd), 2, b[0]^lastFrame[0])
+		e.BeginFrame(0, 0, b[0]^lastFrame[0])
 		for i, x := range b[1:] {
 			e.WriteCrumb(x ^ lastFrame[i+1])
 		}
@@ -90,7 +78,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	b := make([]byte, (h * w))
 
 	for {
-		_, e := d.ReadHeader(2)
+		_, e := d.ReadHeader(0)
 		if !e {
 			break
 		}
