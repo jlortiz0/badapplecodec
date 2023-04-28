@@ -18,17 +18,14 @@ local function mainThread(fname)
   local hpos = startH
   while data ~= nil do
       term.setBackgroundColor(bgColor)
-      term.clear()
       term.setCursorPos(startW,startH)
-      lastBg = bgColor
+      local lastBg = bgColor
       bgRun = ""
       for _,v in ipairs(data) do
           if v == lastBg then
              bgRun = bgRun .. " "
           else
-              if lastBg == bgColor then
-                term.setCursorPos(wpos + startW, hpos)
-              else
+              if #bgRun > 0 then
                 write(bgRun)
               end
               term.setBackgroundColor(v)
@@ -37,8 +34,10 @@ local function mainThread(fname)
           end
           wpos = wpos + 1
           if wpos > w then
-              write(bgRun)
-              bgRun = ""
+              if #bgRun > 0 then
+                write(bgRun)
+                bgRun = ""
+              end
               term.setBackgroundColor(bgColor)
               lastBg = bgColor
               hpos = hpos + 1
@@ -53,11 +52,7 @@ local function mainThread(fname)
       while alId ~= almID do
           _, alId = os.pullEvent("timer")
       end
-      if mh < 20 then
-        almID = os.startTimer(0.05)
-     else
-       almID = os.startTimer(0.1)
-     end
+      almID = os.startTimer(0.05)
   end
   d.destroy()
 end
@@ -67,6 +62,7 @@ if #{...} == 0 then
     return
 end
 
+term.clear()
 while true do
 mainThread(shell.resolve(...))
 end
