@@ -47,11 +47,11 @@ local function mainThread(fname)
       end
       wpos = 1
       hpos = startH
-      data = d.read()
-      local alId = almID - 1
-      while alId ~= almID do
+      data, bgColor = d.read()
+      local alId
+      repeat
           _, alId = os.pullEvent("timer")
-      end
+      until alId == almId
       almID = os.startTimer(0.05)
   end
   d.destroy()

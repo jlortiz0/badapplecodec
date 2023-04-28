@@ -95,15 +95,12 @@ local function idecRead(d)
   for i = 1, len do
     plane[i] = d.dec.readCrumb()
     if plane[i] == nil then return nil end
+    plane[i] = bit32.bxor(plane[i], d.lastPlane[i])
   end
+  d.lastPlane = plane
   temp = {}
-  local lastCrumb = header1
   for i,v in ipairs(plane) do
-    if i % d.w == 1 then
-      lastCrumb = header1
-    end
-    lastCrumb = bit32.bxor(v, lastCrumb)
-    temp[i] = ccColors[lastCrumb + 1]
+    temp[i] = ccColors[v + 1]
   end
   return temp, ccColors[header1 + 1]
 end
@@ -114,8 +111,10 @@ local function NewImageDecoder(fname)
   if f.read(4) ~= "JBAC" then error("invalid format") end
   local h = 256 * string.byte(f.read(1)) + string.byte(f.read(1))
   local w = 256 * string.byte(f.read(1)) + string.byte(f.read(1))
+  local lastPlane = {}
+  for i=0, h*w do lastPlane[i] = 0 end
   local d = {
-    h = h, w = w, dec = NewRLEDecoder(f)
+    h = h, w = w, lastPlane = lastPlane, dec = NewRLEDecoder(f)
   }
   return {
     destroy = function() idecDestroy(d) end,
