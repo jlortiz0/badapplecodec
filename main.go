@@ -21,9 +21,9 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 	defer buf.Flush()
 	buf.Write(binary.BigEndian.AppendUint16(binary.BigEndian.AppendUint16([]byte{'J', 'B', 'A', 'C'}, uint16(h)), uint16(w)))
 
-	e := NewDiffRLEEncoder(w)
+	e := NewDiffRLEEncoder()
 	b := make([]byte, h*w)
-	// lastFrame := make([]byte, len(b))
+	lastFrame := make([]byte, len(b))
 
 	for {
 		b2, ok := <-c
@@ -46,7 +46,7 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 			}
 			b[i] = byte(bestInd)
 			if i%w == 0 {
-				samp[byte(bestInd)]++ // ^lastFrame[i]]++
+				samp[byte(bestInd)]++
 			}
 		}
 		bestInd := 0
@@ -57,14 +57,14 @@ func NewImageEncoder(c <-chan []byte, h, w int, wr io.Writer, closed chan<- stru
 				bestDiff = x
 			}
 		}
-		e.BeginFrame(0, 0, b[0], byte(bestInd)) // ^lastFrame[0], byte(bestInd))
-		for _, x := range b[1:] {
-			e.WriteCrumb(x) //  ^ lastFrame[i+1])
+		e.BeginFrame(uint32(bestInd), 2, b[0]^lastFrame[0])
+		for i, x := range b[1:] {
+			e.WriteCrumb(x ^ lastFrame[i+1])
 		}
 		e.Flush(buf)
-		// temp := b
-		// b = lastFrame
-		// lastFrame = temp
+		temp := b
+		b = lastFrame
+		lastFrame = temp
 	}
 	e.Finalize()
 	e.Flush(buf)
@@ -85,12 +85,12 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 	c <- lastFrame
 	h := int(binary.BigEndian.Uint16(lastFrame))
 	w := int(binary.BigEndian.Uint16(lastFrame[2:]))
-	// lastFrame = make([]byte, h*w)
-	d := NewDiffRLEDecoder(buf, w)
+	lastFrame = make([]byte, h*w)
+	d := NewDiffRLEDecoder(buf)
 	b := make([]byte, (h * w))
 
 	for {
-		_, e := d.ReadHeader(0)
+		_, e := d.ReadHeader(2)
 		if !e {
 			break
 		}
@@ -99,7 +99,7 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 			if !e {
 				return
 			}
-			b[i] = x // ^ lastFrame[i]
+			b[i] = x ^ lastFrame[i]
 		}
 
 		temp := make([]byte, len(b))
@@ -107,9 +107,9 @@ func NewImageDecoder(c chan<- []byte, rd io.Reader) {
 			temp[i] = ccColors[x]
 		}
 		c <- temp
-		// temp = lastFrame
-		// lastFrame = b
-		// b = temp
+		temp = lastFrame
+		lastFrame = b
+		b = temp
 	}
 }
 
@@ -207,11 +207,7 @@ func main2() {
 	h = h2
 	temp2 := make([]byte, h*w*4)
 	var t <-chan time.Time
-	if h > 20 {
-		t = time.Tick(time.Second / 10)
-	} else {
-		t = time.Tick(time.Second / 20)
-	}
+    t = time.Tick(time.Second / 20)
 	display.SetDrawColor(0, 0, 0, 0)
 	waitMode := false
 	for {
