@@ -1,17 +1,17 @@
 package main
 
 import (
-	"C"
 	"bytes"
 	"errors"
+	"io"
+	"math/bits"
 )
-import "io"
 
 var ErrNotCrumb error = errors.New("not a crumb")
 
 type CrumbRLEEncoder struct {
 	output    *bytes.Buffer
-	packetLen int
+	packetLen uint32
 	bytePos   byte
 	curByte   byte
 }
@@ -82,7 +82,7 @@ func (e *CrumbRLEEncoder) Finalize() {
 func (e *CrumbRLEEncoder) flushPacket() {
 	if e.packetLen != 0 {
 		e.packetLen++
-		pos := 63 - int(C.__builtin_clzll(C.ulonglong(e.packetLen)))
+		pos := bits.Len32(e.packetLen)
 		for i := 1; i < pos; i++ {
 			e.writeBit(true)
 		}
@@ -106,7 +106,7 @@ func (e *CrumbRLEEncoder) Copy() *CrumbRLEEncoder {
 
 type CrumbRLEDecoder struct {
 	data      io.ByteReader
-	packetLen int
+	packetLen uint32
 	curByte   byte
 	bytePos   byte
 }
@@ -150,7 +150,7 @@ func (d *CrumbRLEDecoder) readBit() (bool, bool) {
 }
 
 func (d *CrumbRLEDecoder) beginRLEPacket() {
-	pos := 1
+	var pos uint32 = 1
 	b, e := d.readBit()
 	for b {
 		pos++
@@ -159,8 +159,8 @@ func (d *CrumbRLEDecoder) beginRLEPacket() {
 	if !e {
 		return
 	}
-	add := 0
-	for i := 0; i < pos; i++ {
+	var add uint32
+	for i := uint32(0); i < pos; i++ {
 		add <<= 1
 		b, _ = d.readBit()
 		if b {
